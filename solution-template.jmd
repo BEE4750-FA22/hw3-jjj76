@@ -15,6 +15,7 @@ using Pkg
 Pkg.activate(".")
 Pkg.instantiate()
 Pkg.add("JuMP")
+using Plots
 ```
 
 <!--- this block is hidden, but stores the generator and demand data; you can use a dataframe to combine these or refactor as you'd like -->
@@ -47,7 +48,7 @@ The decision variables are:
 using JuMP
 using HiGHS
 generator_capacity = Model(HiGHS.Optimizer);
-generator_type = ["Geothermal", "Coal", "CCGT", "Wind", "Solar"];
+generator_type = ["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"];
 G = 1:length(generator_type);
 T = 1:length(hours);
 ```
@@ -90,23 +91,63 @@ x_g\geq 0,\ y_{g,t}\geq 0, nse_t\geq 0.
 @variable(generator_capacity,x[G]>=0);
 @variable(generator_capacity,y[G,T]>=0);
 @variable(generator_capacity,nse[T]>=0);
-@objective(generator_capacity, Min, investment_cost'*x + 365*(sum(op_cost'*y) + sum(nse)*1000))
+@objective(generator_capacity, Min, investment_cost'*x + 365*(sum(op_cost'*y) + sum(nse)*1000));
 availability = zeros(length(G),length(T));
 availability[1,:] = thermal_cf[1]*ones(length(T));
-availability[2:4,:] = thermal_cf[2:4]*ones(length(T));
+availability[2:4,:] = thermal_cf[2:4]*ones(length(T))';
 availability[5,:] = wind_cf;
 availability[6,:] = solar_cf;
 @constraint(generator_capacity, availability[ g in G, t in T], y[g,t] <= availability[g,t]*x[g]);
-@constraint(generator_capacity, load[t in T], sum(y[:,t]) + nse[t] == demand[t];
+@constraint(generator_capacity, load[t in T], sum(y[:,t]) + nse[t] == demand[t]);
 
 optimize!(generator_capacity)
-
 ```
 ## Problem 1.5
 ### Find Solution
+```julia
+x_g = value.(x); #installed capacity
+
+cost_total = objective_value(generator_capacity);
+
+nse_total = sum(value.(nse));
+```
+Installed capacities: 
+Geothermal: 0
+Coal: 0
+CCGT: 1704.2566371681414 MW
+CT: 881.3274336283189 MW
+Wind: 1238.053097345133 MW
+Solar: 2728.9085545722714 MW
+
+Total Cost: 9.12142212241888e8 dollars
+
+Nonserved Load: 0 MW
+
 
 ## Problem 1.6
 ### Visualize Solution
+```julia
+gr()
+import Pkg;
+Pkg.add("Measures")
+using Measures
+
+s_load = ones(length(G),length(T));
+s_load[:,:]=value.(y)[:,:];
+
+plot(hours,s_load[1,:],label="Geothermal",xlabel="Hours",ylabel="Production (MW)", title = "Energy Production vs Time in Hours", legendfontsize=5);
+plot!(hours,s_load[2,:],label="Coal")
+plot!(hours,s_load[3,:],label="CCGT")
+plot!(hours,s_load[4,:],label="CT")
+plot!(hours,s_load[5,:],label="Wind")
+plot!(hours,s_load[6,:],label="Solar")
+plot!(demand, color=:red, label="Demand", linestyle=:dash)
+
+areaplot(hours,s_load',label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Stacked Energy Production vs Time in Hours", legendfontsize=5);
+plot!(demand, color=:red, label="Demand", linestyle=:dash)
+
+```
+
 
 # Problem 2
 ### CO2 limits of 1.5 MtCO2/year
