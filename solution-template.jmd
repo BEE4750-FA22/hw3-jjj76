@@ -56,7 +56,8 @@ T = 1:length(hours);
 ### formulate objective function
 The goal of the optimization is to minimize $Z$ over the span of one year. $Z$ is the sum of the investment cost, operating cost, and any penalty. 
 ```math
-minZ = \sum_{g}C_g^{\text{INV}}x_g + \sum_{g}\sum_{t=1}^{24} days*C_g^{\text{op}} y_{g,t} + \sum_{t}NonServeEnergy_cost nse_t, 
+minZ = \sum_{g}C_g^{\text{INV}}x_g + \sum_{g}\sum_{t=1}^{24} days*C_g^{\text{OP}} y_{g,t} + \sum_{t}NonServeEnergy_{cost} nse_t, 
+```
 
 investment cost for generator = $C_g^{\text{inv}}$ 
 operating cost for generator = $C_g^{\text{op}}$ 
@@ -65,7 +66,7 @@ demand (MW) in hour $t$ = $D_t$
 investment cost = $\sum_{g}C_g^{\text{inv}}x_g$ 
 operating cost  = $\sum_{g}\sum_{t=1}^{24} days*C_g^{\text{op}} y_{g, t}$ 
 penalty of non served demand = $\sum_{t}NonServeEnergy_{cost} nse_t$  
-```
+
 In this optimization all 365 days are equal in demand (which is ideal but unrealistic)
 
 ## Problem 1.3
@@ -206,10 +207,10 @@ using Measures
 s_load_CO2 = ones(length(G),length(T));
 s_load_CO2[:,:]=value.(y_CO2)[:,:];
 
-plot(transpose(s_load_CO2),label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Energy Production vs Time in Hours w/ CO2 Limit", legendfontsize=5)
-
-areaplot(transpose(s_load_CO2),label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Stacked Energy Production vs Time in Hours w/ CO2 Limit", legendfontsize=5)
-
+plot(transpose(s_load_CO2),label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Energy Production vs Time in Hours w/ CO2 Limit", legendfontsize=5);
+plot!(demand, color=:red, label="Demand", linestyle=:dash)
+areaplot(transpose(s_load_CO2),label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Stacked Energy Production vs Time in Hours w/ CO2 Limit", legendfontsize=5);
+plot!(demand, color=:red, label="Demand", linestyle=:dash)
 ```
 The geothermal generator had much more contribution when there was a CO2 emissions limit. To balance this, all other generation types besides coal decreased. 
 ## Problem 2.5
