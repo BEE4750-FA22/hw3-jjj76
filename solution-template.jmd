@@ -97,7 +97,7 @@ availability[1,:] = thermal_cf[1]*ones(length(T));
 availability[2:4,:] = thermal_cf[2:4]*ones(length(T))';
 availability[5,:] = wind_cf;
 availability[6,:] = solar_cf;
-@constraint(generator_capacity, availability[ g in G, t in T], y[g,t] <= availability[g,t]*x[g]);
+@constraint(generator_capacity, availability_1[ g in G, t in T], y[g,t] <= availability[g,t]*x[g]);
 @constraint(generator_capacity, load[t in T], sum(y[:,t]) + nse[t] == demand[t]);
 
 optimize!(generator_capacity)
@@ -132,10 +132,10 @@ import Pkg;
 Pkg.add("Measures")
 using Measures
 
-s_load = ones(length(G),length(T));
-s_load[:,:]=value.(y)[:,:];
+s_load=ones(length(G),length(T));
+s_load[:,:]=value.(y)[:,:]
 
-plot(hours,s_load[1,:],label="Geothermal",xlabel="Hours",ylabel="Production (MW)", title = "Energy Production vs Time in Hours", legendfontsize=5);
+plot(hours,s_load[1,:],label="Geothermal",xlabel="Hours",ylabel="Production (MW)", title = "Energy Production vs Time in Hours", legendfontsize=5)
 plot!(hours,s_load[2,:],label="Coal")
 plot!(hours,s_load[3,:],label="CCGT")
 plot!(hours,s_load[4,:],label="CT")
@@ -143,9 +143,8 @@ plot!(hours,s_load[5,:],label="Wind")
 plot!(hours,s_load[6,:],label="Solar")
 plot!(demand, color=:red, label="Demand", linestyle=:dash)
 
-areaplot(hours,s_load',label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Stacked Energy Production vs Time in Hours", legendfontsize=5);
+areaplot(hours,s_load',label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Stacked Energy Production vs Time in Hours", legendfontsize=5)
 plot!(demand, color=:red, label="Demand", linestyle=:dash)
-
 ```
 
 
@@ -163,14 +162,78 @@ above constraint ensures total emissions are within limits
 
 ## Problem 2.2
 ### Implement in JuMP
-
+```julia 
+using JuMP
+generator_capacity_CO2 = Model(HiGHS.Optimizer);
+@variable(generator_capacity_CO2,x_CO2[G]>=0);
+@variable(generator_capacity_CO2,y_CO2[G,T]>=0);
+@variable(generator_capacity_CO2,nse_CO2[T]>=0);
+@objective(generator_capacity_CO2,Min,investment_cost'*x_CO2 + 365*(sum(op_cost'*y_CO2) + sum(nse_CO2)*1000));
+@constraint(generator_capacity_CO2,availability_2[g in G,t in T], y_CO2[g,t] <= availability[g,t] * x_CO2[g])
+@constraint(generator_capacity_CO2,load_2[t in T], sum(y_CO2[:,t]) + nse_CO2[t] == demand[t]);
+@constraint(generator_capacity_CO2,emission_limit, 0.365*sum(co2_emissions'*y_CO2)<= 10^3);
+optimize!(generator_capacity_CO2);
+```
+Presolving model
+157 rows, 162 cols, 492 nonzeros
+157 rows, 162 cols, 492 nonzeros
+Presolve : Reductions: rows 157(-12); columns 162(-12); elements 492(-24)
+Solving the presolved LP
+Using EKK dual simplex solver - serial
+  Iteration        Objective     Infeasibilities num(sum)
+          0     0.0000000000e+00 Pr: 24(41167) 0s
+         93     1.1334512774e+09 Pr: 0(0) 0s
+Solving the original LP from the solution after postsolve
+Model   status      : Optimal
+Simplex   iterations: 93
+Objective value     :  1.1334512774e+09
+HiGHS run time      :          0.00
 ## Problem 2.3
 ### Find solution
+```julia
+x_g_CO2 = value.(x_CO2); #installed capacity
 
+cost_total_CO2 = objective_value(generator_capacity_CO2);
+
+nse_total_CO2 = sum(value.(nse_CO2));
+```
+Installed capacities: 
+Geothermal: 1667.5450297660202 MW
+Coal: 0
+CCGT: 757.3150874035459 MW
+CT: 470.63115154400367 MW
+Wind: 611.9863538987386 MW
+Solar: 1519.3979730657943 MW
+
+Total Cost: 1.1334512774182653e9 dollars
+
+Nonserved Load: 0 MW
 ## Problem 2.4
 ### Visualize solution
+```julia
+gr()
+import Pkg;
+Pkg.add("Measures")
+using Measures
 
+s_load_CO2 = ones(length(G),length(T));
+s_load_CO2[:,:]=value.(y_CO2)[:,:];
+
+plot(transpose(s_load_CO2),label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Energy Production vs Time in Hours w/ CO2 Limit", legendfontsize=5)
+
+areaplot(transpose(s_load_CO2),label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Stacked Energy Production vs Time in Hours w/ CO2 Limit", legendfontsize=5)
+
+```
+The geothermal generator had much more contribution when there was a CO2 emissions limit. To balance this, all other generation types besides coal decreased. 
 ## Problem 2.5
 ### Value of CO2 limit + 1000 tCO2/year
+```julia
+shadow_price.(emission_limit);
+```
+
+If there was an additional allowance of 1000 tCO2/year the total cost would decrease by $156844.22393656467.  
 
 # References
+https://docs.juliaplots.org/latest/gallery/pyplot/generated/pyplot-ref58/
+https://jump.dev/JuMP.jl/stable/manual/constraints/
+
