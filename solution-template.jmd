@@ -56,15 +56,16 @@ T = 1:length(hours);
 ### formulate objective function
 The goal of the optimization is to minimize $Z$ over the span of one year. $Z$ is the sum of the investment cost, operating cost, and any penalty. 
 ```math
-\minZ = \sum_{g}C_g^{\text{INV}}x_g + \sum_{g}\sum_{t=1}^{24} days*C_g^{\text{op}} y_{g,t} + \sum_{t}NonServeEnergy_cost nse_t, 
-```
-$C_g^{\text{inv}}$ : investment cost for generator
-$C_g^{\text{op}}$  : operating cost for generator
-$D_t$ is the demand (MW) in hour $t$
+minZ = \sum_{g}C_g^{\text{INV}}x_g + \sum_{g}\sum_{t=1}^{24} days*C_g^{\text{op}} y_{g,t} + \sum_{t}NonServeEnergy_cost nse_t, 
 
-$\sum_{g}C_g^{\text{inv}}x_g$ : investment cost
-$\sum_{g}\sum_{t=1}^{24} days*C_g^{\text{op}} y_{g, t}$ : operating cost 
-$\sum_{t}NonServeEnergy_cost nse_t$ : penalty of non served demand 
+investment cost for generator = $C_g^{\text{inv}}$ 
+operating cost for generator = $C_g^{\text{op}}$ 
+demand (MW) in hour $t$ = $D_t$ 
+
+investment cost = $\sum_{g}C_g^{\text{inv}}x_g$ 
+operating cost  = $\sum_{g}\sum_{t=1}^{24} days*C_g^{\text{op}} y_{g, t}$ 
+penalty of non served demand = $\sum_{t}NonServeEnergy_{cost} nse_t$  
+```
 In this optimization all 365 days are equal in demand (which is ideal but unrealistic)
 
 ## Problem 1.3
@@ -78,7 +79,7 @@ y_{g,t}\leq CF_g x_g
 There is a goal in terms of generated electricity as more or less leads to economic loss. 
 Sum of electricity generated plus nonserved energy load = demand
 ``` math
-\sum{g} y_{g,t} + nse_t = D_t
+\sum_{g} y_{g,t} + nse_t = D_t
 ```
 All non cost values must be positive as energy generation, capcities, and loads cannot be negative
 ```math
@@ -133,17 +134,17 @@ Pkg.add("Measures")
 using Measures
 
 s_load=ones(length(G),length(T));
-s_load[:,:]=value.(y)[:,:]
+s_load[:,:]=value.(y)[:,:];
 
-plot(hours,s_load[1,:],label="Geothermal",xlabel="Hours",ylabel="Production (MW)", title = "Energy Production vs Time in Hours", legendfontsize=5)
-plot!(hours,s_load[2,:],label="Coal")
-plot!(hours,s_load[3,:],label="CCGT")
-plot!(hours,s_load[4,:],label="CT")
-plot!(hours,s_load[5,:],label="Wind")
-plot!(hours,s_load[6,:],label="Solar")
+plot(hours,s_load[1,:],label="Geothermal",xlabel="Hours",ylabel="Production (MW)", title = "Energy Production vs Time in Hours", legendfontsize=5);
+plot!(hours,s_load[2,:],label="Coal");
+plot!(hours,s_load[3,:],label="CCGT");
+plot!(hours,s_load[4,:],label="CT");
+plot!(hours,s_load[5,:],label="Wind");
+plot!(hours,s_load[6,:],label="Solar");
 plot!(demand, color=:red, label="Demand", linestyle=:dash)
 
-areaplot(hours,s_load',label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Stacked Energy Production vs Time in Hours", legendfontsize=5)
+areaplot(hours,s_load',label=permutedims(["Geothermal", "Coal", "CCGT", "CT", "Wind", "Solar"]),xlabel="Hours",ylabel="Production (MW)", title = "Stacked Energy Production vs Time in Hours", legendfontsize=5);
 plot!(demand, color=:red, label="Demand", linestyle=:dash)
 ```
 
@@ -155,9 +156,9 @@ plot!(demand, color=:red, label="Demand", linestyle=:dash)
 More constraints:
 ```math
 \sum_{g}\sum_{t=1}^{24} T*E_{g}y_{g,t}\leq 1.5\times 10^{6},
-```
 
-$E_g$ : CO2 emissions (t/MWh) 
+CO2 emissions (t/MWh) = $E_g$ 
+```
 above constraint ensures total emissions are within limits
 
 ## Problem 2.2
@@ -169,25 +170,11 @@ generator_capacity_CO2 = Model(HiGHS.Optimizer);
 @variable(generator_capacity_CO2,y_CO2[G,T]>=0);
 @variable(generator_capacity_CO2,nse_CO2[T]>=0);
 @objective(generator_capacity_CO2,Min,investment_cost'*x_CO2 + 365*(sum(op_cost'*y_CO2) + sum(nse_CO2)*1000));
-@constraint(generator_capacity_CO2,availability_2[g in G,t in T], y_CO2[g,t] <= availability[g,t] * x_CO2[g])
+@constraint(generator_capacity_CO2,availability_2[g in G,t in T], y_CO2[g,t] <= availability[g,t] * x_CO2[g]);
 @constraint(generator_capacity_CO2,load_2[t in T], sum(y_CO2[:,t]) + nse_CO2[t] == demand[t]);
 @constraint(generator_capacity_CO2,emission_limit, 0.365*sum(co2_emissions'*y_CO2)<= 10^3);
 optimize!(generator_capacity_CO2);
 ```
-Presolving model
-157 rows, 162 cols, 492 nonzeros
-157 rows, 162 cols, 492 nonzeros
-Presolve : Reductions: rows 157(-12); columns 162(-12); elements 492(-24)
-Solving the presolved LP
-Using EKK dual simplex solver - serial
-  Iteration        Objective     Infeasibilities num(sum)
-          0     0.0000000000e+00 Pr: 24(41167) 0s
-         93     1.1334512774e+09 Pr: 0(0) 0s
-Solving the original LP from the solution after postsolve
-Model   status      : Optimal
-Simplex   iterations: 93
-Objective value     :  1.1334512774e+09
-HiGHS run time      :          0.00
 ## Problem 2.3
 ### Find solution
 ```julia
