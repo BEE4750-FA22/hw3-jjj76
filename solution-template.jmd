@@ -60,11 +60,15 @@ minZ = \sum_{g}C_g^{\text{INV}}x_g + \sum_{g}\sum_{t=1}^{24} days*C_g^{\text{OP}
 ```
 
 investment cost for generator = $C_g^{\text{inv}}$ 
+
 operating cost for generator = $C_g^{\text{op}}$ 
+
 demand (MW) in hour $t$ = $D_t$ 
 
 investment cost = $\sum_{g}C_g^{\text{inv}}x_g$ 
+
 operating cost  = $\sum_{g}\sum_{t=1}^{24} days*C_g^{\text{op}} y_{g, t}$ 
+
 penalty of non served demand = $\sum_{t}NonServeEnergy_{cost} nse_t$  
 
 In this optimization all 365 days are equal in demand (which is ideal but unrealistic)
@@ -157,9 +161,9 @@ plot!(demand, color=:red, label="Demand", linestyle=:dash)
 More constraints:
 ```math
 \sum_{g}\sum_{t=1}^{24} T*E_{g}y_{g,t}\leq 1.5\times 10^{6},
-
-CO2 emissions (t/MWh) = $E_g$ 
 ```
+CO2 emissions (t/MWh) = $E_g$ 
+
 above constraint ensures total emissions are within limits
 
 ## Problem 2.2
